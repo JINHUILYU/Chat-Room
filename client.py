@@ -43,7 +43,7 @@ def receive_messages(sock):
                 # 服务器断开或出错
                 print("与服务器的连接已断开。")
                 break
-            print(data.decode(), end='')
+            print(data.decode(), end='\n')
         except:
             print("接收消息时出现错误，连接中断。")
             break

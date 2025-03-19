@@ -1,6 +1,7 @@
 import socket
 import threading
 import random
+import sys
 
 # 全局数据结构：在实际应用中建议使用数据库或其他方式进行持久化
 USERS = {}  # { username: {'socket': socket对象, 'groups': set() } }
@@ -112,7 +113,7 @@ def handle_client(client_socket, addr):
                 if len(parts) >= 2:
                     # WORLD 后面全部当作消息
                     world_msg = parts[1] if len(parts) == 2 else parts[1] + " " + parts[2]
-                    broadcast_world(f"{username}: {world_msg}", None)
+                    broadcast_world(f"{username}: {world_msg}")
                 else:
                     client_socket.sendall("用法: WORLD <消息>\n".encode())
 
@@ -185,16 +186,26 @@ def start_server(host='0.0.0.0', port=19090):
     启动服务器并监听端口。
     """
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # 重要：允许端口重复使用，否则在TIME_WAIT时可能无法绑定
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
     server.bind((host, port))
     server.listen(5)
     print(f"服务器已启动，正在监听 {host}:{port}...")
 
-    while True:
-        client_socket, addr = server.accept()
-        print(f"接受到来自 {addr} 的连接")
-        # 为每个客户端开启一个新线程处理
-        t = threading.Thread(target=handle_client, args=(client_socket, addr))
-        t.start()
+    try:
+        while True:
+            client_socket, addr = server.accept()
+            print(f"接受到来自 {addr} 的连接")
+            # 创建一个线程处理客户端请求
+            t = threading.Thread(target=handle_client, args=(client_socket, addr))
+            t.start()
+    except KeyboardInterrupt:
+        print("\n服务器收到 KeyboardInterrupt，开始关闭...")
+    finally:
+        # 关闭服务器套接字，释放端口
+        server.close()
+        print("服务器已关闭。")
 
 
 if __name__ == '__main__':
